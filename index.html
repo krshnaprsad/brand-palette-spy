@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Brand Palette Spy</title>
+<link rel="stylesheet" href="web/app.css">
+</head>
+<body>
+<header class="hd"><span class="logo" role="img" aria-label="Zero3 Creatives"></span><div><h1>Brand Palette Spy</h1><p class="tag">Drop a logo or a website. Get the colours, the fonts and a brand sheet.</p></div><span class="ver">v1.0.0</span></header>
+<main>
+  <div class="seg" id="tabs"><button data-t="image" class="on">Logo or image</button><button data-t="site">Website</button></div>
+
+  <section id="pane-image">
+    <label class="drop" id="drop" tabindex="0">
+      <input id="file" type="file" accept="image/*" hidden>
+      <strong>Drop a logo here</strong><span>or click to choose, or paste an image (Ctrl+V). PNG, JPG, SVG, WebP. It never leaves your computer.</span>
+    </label>
+    <div class="opts"><label class="chk"><input id="bg" type="checkbox" checked> Ignore a flat background</label><label>Colours <input id="count" type="range" min="3" max="10" value="6"></label></div>
+  </section>
+
+  <section id="pane-site" hidden>
+    <p class="note">A web page cannot read another website, so there are two ways in. <b>Fastest:</b> run <code>node cli/spy.js https://example.com</code> (see the README) and drop the <code>brand.json</code> it makes here. <b>Or:</b> open the site, press Ctrl+U, select all, copy, and paste the source below.</p>
+    <label class="drop small" id="dropjson" tabindex="0"><input id="jsonfile" type="file" accept=".json,application/json" hidden><strong>Drop brand.json</strong><span>from the command line tool</span></label>
+    <textarea id="src" spellcheck="false" placeholder="Paste page source (HTML), with or without CSS"></textarea>
+    <div class="row"><input id="srcurl" type="text" spellcheck="false" placeholder="Site address (optional, only used to name the sheet)"><button id="read" class="btn">Read colours and fonts</button></div>
+  </section>
+
+  <p id="msg" class="msg" hidden></p>
+  <section id="result" hidden>
+    <div class="bar"><h2 id="rtitle">Result</h2><div class="acts"><button class="btn" id="dlSheet">Download brand sheet</button><button class="btn" id="dlPng">Download palette PNG</button><button class="btn" id="cpCss">Copy CSS</button><button class="btn" id="dlJson">Download JSON</button></div></div>
+    <img id="preview" alt="" hidden>
+    <h3>Brand colours</h3><div class="grid" id="brandGrid"></div>
+    <h3 id="nh">Neutrals</h3><div class="grid" id="neutralGrid"></div>
+    <div id="fontBox"><h3>Fonts</h3><div id="fonts"></div></div>
+  </section>
+</main>
+<footer class="ft">Made by Zero3. Free and open source, MIT licence. Colours are read from what you give it, so check them against official brand guidelines for client work.</footer>
+<script src="src/color.js"></script>
+<script src="src/extract.js"></script>
+<script src="src/sheet.js"></script>
+<script src="web/app.js"></script>
+</body>
+</html>
