@@ -101,7 +101,7 @@
   function chip(c) {
     var d = document.createElement("button"); d.className = "sw"; d.title = "Click to copy " + c.hex;
     d.innerHTML = '<span class="chip" style="background:' + S.esc(c.hex) + ';color:' + S.esc(c.text) + '"><b>' + S.esc(c.name) + '</b><i>' + S.esc(c.hex) + (c.share ? " &middot; " + c.share + "%" : "") + '</i></span>' +
-      '<span class="meta">RGB ' + c.rgb.join(", ") + '<br>HSL ' + c.hsl[0] + ", " + c.hsl[1] + "%, " + c.hsl[2] + '%<br>White text ' + c.onWhite + ':1<br>Black text ' + c.onBlack + ':1</span>';
+      '<span class="meta">RGB ' + c.rgb.join(", ") + '<br>HSL ' + c.hsl[0] + ", " + c.hsl[1] + "%, " + c.hsl[2] + '%<br>White text ' + c.onWhite + ':1<br>Black text ' + c.onBlack + ':1' + (c.uses && c.uses.length ? '<br><em class="use">Found in CSS for ' + S.esc(c.uses.join(", ")) + '</em>' : '') + '</span>';
     d.addEventListener("click", function () { copy(c.hex, "Copied " + c.hex); });
     return d;
   }
