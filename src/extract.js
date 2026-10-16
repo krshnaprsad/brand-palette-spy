@@ -23,21 +23,87 @@
     if (/(^|[^-\w])color\s*:\s*$/i.test(prefix)) return 1;
     return 1;
   }
-  function analyseColors(css, extra) {
+  // ---- what is actually used on the page ----
+  function unesc(t) { return t.replace(/\\(.)/g, "$1"); }
+  function htmlTokens(html) {
+    var cls = {}, ids = {}, m, re = /\bclass\s*=\s*(?:"([^"]*)"|'([^']*)')/gi;
+    while ((m = re.exec(html))) (m[1] || m[2] || "").split(/\s+/).forEach(function (c) { if (c) cls[c] = (cls[c] || 0) + 1; });
+    re = /\bid\s*=\s*(?:"([^"]*)"|'([^']*)')/gi; while ((m = re.exec(html))) ids[m[1] || m[2]] = 1;
+    var tags = {}; (html.match(/<([a-z][\w-]*)/gi) || []).forEach(function (t) { tags[t.slice(1).toLowerCase()] = 1; });
+    return { cls: cls, ids: ids, tags: tags };
+  }
+  // flat list of {sel, body}; keyframes, font-face and other at-rule bodies are skipped
+  function parseRules(css) {
+    var out = [], i = 0, start = 0, n = css.length;
+    while (i < n) {
+      var ch = css.charCodeAt(i);
+      if (ch === 123) { // {
+        var pre = css.slice(start, i).trim(), depth = 1, j = i + 1;
+        if (pre.charAt(0) === "@" && /^@(media|supports|layer|container|document)\b/i.test(pre)) { i++; start = i; continue; }
+        while (j < n && depth) { var cc = css.charCodeAt(j); if (cc === 123) depth++; else if (cc === 125) depth--; j++; }
+        if (pre.charAt(0) !== "@") out.push({ sel: pre, body: css.slice(i + 1, j - 1) });
+        i = j; start = i; continue;
+      }
+      if (ch === 125 || ch === 59) start = i + 1;   // } or ;
+      i++;
+    }
+    return out;
+  }
+  // 0 if the rule points at classes or ids that are not on the page, otherwise a weight from how often they appear
+  function ruleUse(sel, tok) {
+    var best = 0, parts = sel.split(",");
+    for (var p = 0; p < parts.length; p++) {
+      var s = parts[p].replace(/:(not|is|where|has)\([^)]*\)/g, "").replace(/\[[^\]]*\]/g, ""), re = /([.#])((?:\\.|[\w-])+)/g, m, ok = true, top = 1;
+      while ((m = re.exec(s))) { var name = unesc(m[2]); if (m[1] === ".") { if (!tok.cls[name]) { ok = false; break; } top = Math.max(top, tok.cls[name]); } else if (!tok.ids[name]) { ok = false; break; } }
+      if (ok) { var tg = s.replace(/([.#])((?:\\.|[\w-])+)/g, " ").replace(/::?[\w-]+(\([^)]*\))?/g, " ").match(/(^|[\s>+~])[a-z][\w-]*/gi) || []; tg.forEach(function (t) { t = t.replace(/^[\s>+~]/, "").toLowerCase(); if (t !== "html" && t !== "body" && !tok.tags[t]) ok = false; }); }
+      if (ok) best = Math.max(best, 1 + Math.min(2, Math.log(top) / Math.LN10));
+    }
+    return best;
+  }
+  function usesLabels(prefix, sel) {
+    var out = [];
+    if (/(background(-color)?|background-image)\s*:\s*$/i.test(prefix)) out.push("backgrounds");
+    else if (/(^|[^-\w])color\s*:\s*$/i.test(prefix)) out.push("text");
+    else if (/(border(-\w+)*(-color)?|outline(-color)?)\s*:\s*$/i.test(prefix)) out.push("borders");
+    else if (/(fill|stroke)\s*:\s*$/i.test(prefix)) out.push("icons and graphics");
+    if (/btn|button|cta/i.test(sel)) out.push("buttons");
+    if (/(^|[\s>,+~])a([\s.:#\[,>+~]|$)|link/i.test(sel)) out.push("links");
+    if (/logo|brand/i.test(sel)) out.push("logo");
+    return out;
+  }
+  function analyseColors(css, extra, html) {
     var map = {}, text = stripComments(css), meta = (extra || []).slice();
-    colorsIn(text).forEach(function (c) {
-      var pre = text.slice(Math.max(0, c.index - 40), c.index), w = weightFor(pre), k = C.rgbToHex(c.rgb);
-      map[k] = map[k] || { rgb: c.rgb, count: 0, score: 0 }; map[k].count++; map[k].score += w;
-    });
-    meta.forEach(function (rgb) { var k = C.rgbToHex(rgb); map[k] = map[k] || { rgb: rgb, count: 0, score: 0 }; map[k].count += 3; map[k].score += 12; });
+    function put(rgb, w, labels) {
+      var k = C.rgbToHex(rgb); map[k] = map[k] || { rgb: rgb, count: 0, score: 0, uses: {} };
+      map[k].count++; map[k].score += w; (labels || []).forEach(function (l) { map[k].uses[l] = (map[k].uses[l] || 0) + w; });
+    }
+    var tok = html ? htmlTokens(html) : null, usedRules = null;
+    if (tok && Object.keys(tok.cls).length) {
+      usedRules = []; var refs = {};
+      parseRules(text).forEach(function (r) { var u = ruleUse(r.sel, tok); if (u) { usedRules.push({ sel: r.sel, body: r.body, mult: u }); (r.body.match(/var\(\s*--[\w-]+/g) || []).forEach(function (v) { refs[v.replace(/var\(\s*/, "")] = 1; }); } });
+      (html.match(/var\(\s*--[\w-]+/g) || []).forEach(function (v) { refs[v.replace(/var\(\s*/, "")] = 1; });
+      // where each custom property is read: "background: var(--x)" means --x is a background colour
+      var varLabels = {};
+      usedRules.forEach(function (r) { var re = /([\w-]+)\s*:\s*[^;{}]*?var\(\s*(--[\w-]+)/g, m; while ((m = re.exec(r.body))) { if (m[1].indexOf("--") === 0) continue; (varLabels[m[2]] = varLabels[m[2]] || []).push.apply(varLabels[m[2]], usesLabels(m[1] + ":", r.sel)); } });
+      usedRules.forEach(function (r) {
+        var body = r.body.replace(/(^|[;{\s])(--[\w-]+)\s*:\s*([^;]*)/g, function (all, pre, name, val) {
+          if (refs[name]) colorsIn(val).forEach(function (c) { var direct = varLabels[name] && varLabels[name].length; put(c.rgb, weightFor(name + ":") * r.mult * (direct ? 1 : 0.25), direct ? varLabels[name] : ["theme variable"]); });
+          return pre + "x:0";
+        });
+        colorsIn(body).forEach(function (c) { var pre = body.slice(Math.max(0, c.index - 40), c.index); put(c.rgb, weightFor(pre) * r.mult, usesLabels(pre, r.sel)); });
+      });
+      if (Object.keys(map).length < 3) { map = {}; usedRules = null; }
+    }
+    if (!usedRules) colorsIn(text).forEach(function (c) { var pre = text.slice(Math.max(0, c.index - 40), c.index); put(c.rgb, weightFor(pre), usesLabels(pre, "")); });
+    meta.forEach(function (rgb) { put(rgb, 12, ["theme colour"]); map[C.rgbToHex(rgb)].count += 2; });
     var list = Object.keys(map).map(function (k) { return map[k]; });
     // merge near-identical colours (#0A66C2 vs #0A67C3) into the more frequent one
     list.sort(function (a, b) { return b.score - a.score; });
     var merged = [];
-    list.forEach(function (c) { var m = merged.filter(function (x) { return C.deltaE(x.rgb, c.rgb) < 6; })[0]; if (m) { m.count += c.count; m.score += c.score; } else merged.push({ rgb: c.rgb, count: c.count, score: c.score }); });
+    list.forEach(function (c) { var m = merged.filter(function (x) { return C.deltaE(x.rgb, c.rgb) < 6; })[0]; if (m) { m.count += c.count; m.score += c.score; Object.keys(c.uses).forEach(function (l) { m.uses[l] = (m.uses[l] || 0) + c.uses[l]; }); } else merged.push({ rgb: c.rgb, uses: c.uses, count: c.count, score: c.score }); });
     var neutrals = [], brand = [];
     merged.forEach(function (c) {
-      var d = C.describe(c.rgb); d.count = c.count; d.score = c.score;
+      var d = C.describe(c.rgb); d.count = c.count; d.score = c.score; d.uses = Object.keys(c.uses || {}).sort(function (a, b) { return c.uses[b] - c.uses[a]; }).slice(0, 3);
       var hsl = d.hsl, ch = C.chroma(c.rgb);
       if (ch < 12 || hsl[1] < 8) neutrals.push(d); else { d.chroma = Math.round(ch); brand.push(d); }
     });
@@ -111,7 +177,7 @@
   function extract(html, cssTexts, base) {
     var info = pageInfo(html, base || ""), css = inlineCss(html) + "\n" + (cssTexts || []).join("\n");
     var extra = []; if (info.themeColor) extra.push(info.themeColor); if (info.tile) extra.push(info.tile);
-    var colors = analyseColors(css, extra), fonts = fontsIn(css, html);
+    var colors = analyseColors(css, extra, html), fonts = fontsIn(css, html);
     return { url: base || "", title: info.title, description: info.description, themeColor: info.themeColor ? C.rgbToHex(info.themeColor) : null, logo: info.logo, icon: info.icon, ogImage: info.ogImage, stylesheets: info.stylesheets, colors: colors, fonts: fonts.fonts, genericFonts: fonts.generic };
   }
   var api = { extract: extract, analyseColors: analyseColors, fontsIn: fontsIn, pageInfo: pageInfo, colorsIn: colorsIn };
