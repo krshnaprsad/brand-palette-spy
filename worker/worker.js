@@ -59,6 +59,42 @@ async function grab(u, max, wantBuf) {
 const text = b => new TextDecoder("utf-8").decode(b.buf);
 function b64(buf) { let s = ""; for (let i = 0; i < buf.length; i += 0x8000) s += String.fromCharCode.apply(null, buf.subarray(i, i + 0x8000)); return btoa(s); }
 
+// Looks for a brand guideline or brand assets page. Only pages that really load and really mention it are returned.
+const PATHS = ["/brand", "/brand-guidelines", "/brand-assets", "/brand-kit", "/brand-resources", "/brand-center", "/press", "/press-kit", "/media-kit", "/styleguide", "/style-guide", "/about/brand", "/company/brand", "/brand/guidelines", "/press/brand"];
+const KW = /\bbrand|style[\s-]*guide|\bguidelines|\bpress\b|media[\s-]*kit|\bidentity|\blogos?\b/i;
+const GUIDE = /guideline|brand[\s-]*book|style[\s-]*guide|identity|brand[\s-]*(center|centre|portal|hub)|^brand$/i;
+const ent = t => t.replace(/&amp;/g, "&").replace(/&#0?39;|&apos;/g, "'").replace(/&quot;/g, '"').replace(/&#x27;/g, "'");
+const titleOf = h => { const m = h.match(/<title[^>]*>([\s\S]*?)<\/title>/i); return m ? ent(m[1].replace(/\s+/g, " ").trim()) : ""; };
+const h1Of = h => { const m = h.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i); return m ? m[1].replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().replace(/&amp;/g, "&") : ""; };
+async function probe(u, home) {
+  try {
+    const g = await grab(u, 150000), isPdf = String.fromCharCode(g.buf[0], g.buf[1], g.buf[2], g.buf[3]) === "%PDF";
+    const x = new URL(g.url), reg = h => h.split(".").slice(-2).join(".");
+    if (reg(x.hostname) !== reg(new URL(u).hostname)) return null;
+    if (isPdf) return { url: g.url, label: decodeURIComponent(x.pathname.split("/").pop() || "Brand PDF").replace(/\.pdf$/i, "").replace(/[-_]+/g, " "), pdf: true, guide: GUIDE.test(x.pathname.replace(/[-_]/g, " ")) || /guideline/i.test(x.pathname) };
+    if (!/html/i.test(g.type)) return null;
+    if (x.pathname === "/" || x.pathname === "") return null;
+    const h = text(g), t = titleOf(h), h1 = h1Of(h);
+    if (/not found|404|page (doesn.t|does not) exist|can.t be found/i.test(t + " " + h1)) return null;
+    if (home && t && t === home.title && home.title.length > 3) return null;
+    if (!KW.test(t + " " + h1)) return null;
+    if (/<meta[^>]+property=["']og:type["'][^>]+content=["'](profile|object)["']/i.test(h) || /<meta[^>]+content=["'](profile|object)["'][^>]+property=["']og:type["']/i.test(h)) return null;
+    const label = (h1 && h1.length < 70 ? h1 : t || x.pathname).slice(0, 70);
+    return { url: g.url, label: label, pdf: false, guide: GUIDE.test(t + " " + h1 + " " + x.pathname.replace(/[-_]/g, " ")) };
+  } catch (e) { return null; }
+}
+async function findGuides(site, extra) {
+  const root = check(site), origin = root.origin;
+  let home = null; try { const hp = await grab(origin + "/", 400000); home = { title: titleOf(text(hp)) }; } catch (e) {}
+  const cands = []; const add = u => { try { const h = check(new URL(u, origin).href).href; if (cands.indexOf(h) < 0 && cands.length < 28) cands.push(h); } catch (e) {} };
+  extra.slice(0, 6).forEach(add); PATHS.forEach(p => add(origin + p));
+  try { const sm = text(await grab(origin + "/sitemap.xml", 400000)); const re = /<loc>\s*([^<\s]+)\s*<\/loc>/gi; let m, n = 0; while ((m = re.exec(sm)) && n < 4) { let path = ""; try { path = new URL(m[1]).pathname; } catch (e) { continue; } if (/(^|\/)(brand(-?(assets|guidelines|kit|center|centre|resources|book|identity))?|press-?kit|media-?kit|style-?guide)\/?$/i.test(path)) { add(m[1]); n++; } } } catch (e) {}
+  const res = await Promise.all(cands.map(u => probe(u, home))), seen = {}, out = [];
+  res.forEach(r => { if (r && !seen[r.url]) { seen[r.url] = 1; out.push(r); } });
+  out.sort((a, b) => (b.guide ? 1 : 0) - (a.guide ? 1 : 0));
+  return { site: origin, checked: cands.length, found: out.slice(0, 6) };
+}
+
 export default {
   async fetch(req) {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: Object.assign({ "access-control-allow-methods": "GET", "access-control-max-age": "86400" }, cors(req)) });
@@ -66,9 +102,10 @@ export default {
     const origin = req.headers.get("origin");
     if (origin && !ALLOW.includes(origin)) return json(req, { error: "This helper only works with the Brand Palette Spy app." }, 403);
     const q = new URL(req.url).searchParams, ip = req.headers.get("cf-connecting-ip") || "x";
-    if (!q.get("url") && !q.get("img") && !q.get("font")) return json(req, { ok: true, name: "brand-palette-spy helper" });
+    if (!q.get("url") && !q.get("img") && !q.get("font") && !q.get("guide")) return json(req, { ok: true, name: "brand-palette-spy helper" });
     if (limited(ip)) return json(req, { error: "Too many requests. Try again in a few minutes." }, 429);
     try {
+      if (q.get("guide")) return json(req, await findGuides(q.get("guide"), q.getAll("l")));
       if (q.get("font")) {
         // pass-through only: the bytes go straight to the visitor's browser and nothing is kept here
         const g = await grab(q.get("font"), FONT_MAX + 1);
