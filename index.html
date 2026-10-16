@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="web/app.css">
 </head>
 <body>
-<header class="hd"><span class="logo" role="img" aria-label="Zero3 Creatives"></span><div><h1>Brand Palette Spy</h1><p class="tag">Drop a logo or a website. Get the colours, the fonts and a brand sheet.</p></div><span class="ver">v1.0.0</span></header>
+<header class="hd"><span class="logo" role="img" aria-label="Zero3 Creatives"></span><div><h1>Brand Palette Spy</h1><p class="tag">Drop a logo or a website. Get the colours, the fonts and a brand sheet.</p></div><span class="ver">v1.1.0</span></header>
 <main>
   <div class="seg" id="tabs"><button data-t="image" class="on">Logo or image</button><button data-t="site">Website</button></div>
 
@@ -20,10 +20,14 @@
   </section>
 
   <section id="pane-site" hidden>
-    <p class="note">A web page cannot read another website, so there are two ways in. <b>Fastest:</b> run <code>node cli/spy.js https://example.com</code> (see the README) and drop the <code>brand.json</code> it makes here. <b>Or:</b> open the site, press Ctrl+U, select all, copy, and paste the source below.</p>
+    <div class="row"><input id="siteurl" type="text" spellcheck="false" placeholder="Paste a website address, like stripe.com"><button id="go" class="btn">Read site</button></div>
+    <p class="note">A browser page cannot read other sites on its own, so the address goes through a small free helper that fetches the page and its stylesheets and sends back the raw text. The colours and fonts are worked out here in your browser. The helper keeps nothing. It has a free daily limit and a rate limit, so if it says it is busy, try again later. Some sites block bots or draw everything with JavaScript, and those can come back thin.</p>
+    <details class="more"><summary>Other ways in (no helper needed)</summary>
+    <p class="note"><b>Command line:</b> run <code>node cli/spy.js https://example.com</code> (see the README) and drop the <code>brand.json</code> it makes here. <b>Or:</b> open the site, press Ctrl+U, select all, copy, and paste the source below.</p>
     <label class="drop small" id="dropjson" tabindex="0"><input id="jsonfile" type="file" accept=".json,application/json" hidden><strong>Drop brand.json</strong><span>from the command line tool</span></label>
     <textarea id="src" spellcheck="false" placeholder="Paste page source (HTML), with or without CSS"></textarea>
     <div class="row"><input id="srcurl" type="text" spellcheck="false" placeholder="Site address (optional, only used to name the sheet)"><button id="read" class="btn">Read colours and fonts</button></div>
+    </details>
   </section>
 
   <p id="msg" class="msg" hidden></p>
