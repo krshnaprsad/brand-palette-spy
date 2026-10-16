@@ -2,7 +2,7 @@
 // stylesheets for the app, because a browser page can't read other sites by itself.
 // It returns raw HTML and CSS only. The app reads the colours and fonts on your machine.
 const ALLOW = ["https://krshnaprsad.github.io", "http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:8080"];
-const PAGE_MAX = 1500000, CSS_MAX = 600000, IMG_MAX = 300000, MAX_CSS = 8, MAX_REDIRECTS = 4, TIMEOUT = 8000;
+const PAGE_MAX = 1500000, CSS_MAX = 600000, IMG_MAX = 300000, FONT_MAX = 3000000, MAX_CSS = 8, MAX_REDIRECTS = 4, TIMEOUT = 8000;
 const PER_IP = 20, PER_IP_WINDOW = 10 * 60 * 1000, GLOBAL = 1500, GLOBAL_WINDOW = 60 * 60 * 1000;
 const UA = "Mozilla/5.0 (compatible; BrandPaletteSpy/1.0; +https://github.com/krshnaprsad/brand-palette-spy)";
 const hits = new Map(); let gHits = [];
@@ -66,9 +66,17 @@ export default {
     const origin = req.headers.get("origin");
     if (origin && !ALLOW.includes(origin)) return json(req, { error: "This helper only works with the Brand Palette Spy app." }, 403);
     const q = new URL(req.url).searchParams, ip = req.headers.get("cf-connecting-ip") || "x";
-    if (!q.get("url") && !q.get("img")) return json(req, { ok: true, name: "brand-palette-spy helper" });
+    if (!q.get("url") && !q.get("img") && !q.get("font")) return json(req, { ok: true, name: "brand-palette-spy helper" });
     if (limited(ip)) return json(req, { error: "Too many requests. Try again in a few minutes." }, 429);
     try {
+      if (q.get("font")) {
+        // pass-through only: the bytes go straight to the visitor's browser and nothing is kept here
+        const g = await grab(q.get("font"), FONT_MAX + 1);
+        const m4 = String.fromCharCode(g.buf[0] || 0, g.buf[1] || 0, g.buf[2] || 0, g.buf[3] || 0);
+        const isFont = m4 === "wOF2" || m4 === "wOFF" || m4 === "OTTO" || m4 === "true" || m4 === "\u0000\u0001\u0000\u0000";
+        if (g.truncated || !isFont) return json(req, { error: "That is not a font file I can pass on." }, 415);
+        return new Response(g.buf, { headers: Object.assign({ "content-type": "application/octet-stream" }, cors(req)) });
+      }
       if (q.get("img")) {
         const g = await grab(q.get("img"), IMG_MAX + 1);
         const type = g.type.split(";")[0].trim().toLowerCase();
@@ -86,7 +94,7 @@ export default {
       }
       const styles = [];
       await Promise.all(links.map(async (u, i) => { try { const c = await grab(u, CSS_MAX); styles[i] = text(c); } catch (e) { styles[i] = ""; } }));
-      return json(req, { url: page.url, html: html, styles: styles.filter(Boolean), stylesheets: links, truncated: page.truncated });
+      return json(req, { url: page.url, html: html, sheets: links.map((u, i) => ({ url: u, css: styles[i] })).filter(x => x.css), stylesheets: links, truncated: page.truncated });
     } catch (e) { return json(req, { error: e.message || "Something went wrong." }, 400); }
   }
 };
