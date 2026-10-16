@@ -56,6 +56,26 @@
   $("#bg").addEventListener("change", fromImage); $("#count").addEventListener("input", fromImage);
 
   // ---- website ----
+  var HELPER = "https://brand-palette-spy.krishnaprasadofficial29.workers.dev/";
+  function helper(q) { return fetch(HELPER + "?" + q).then(function (r) { return r.json().catch(function () { return { error: "The helper sent something unexpected." }; }); }); }
+  function goSite() {
+    var u = $("#siteurl").value.trim(); if (!u) { msg("Type a website address first.", true); return; }
+    if (!/^https?:\/\//i.test(u)) u = "https://" + u;
+    var btn = $("#go"); btn.disabled = true; btn.textContent = "Reading..."; msg("");
+    helper("url=" + encodeURIComponent(u)).then(function (d) {
+      if (d.error) throw new Error(d.error);
+      var b = E.extract(d.html || "", d.styles || [], d.url || u);
+      if (!b.title) b.title = (d.url || u).replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
+      b.source = "site"; brand = b; imgURL = "";
+      if (!b.colors.brand.length && !b.colors.neutrals.length) msg("No colours found. This site may draw everything with JavaScript or block bots. Try pasting its source under Other ways in.", true);
+      show();
+      var cand = [b.logo, b.icon, b.ogImage].filter(Boolean); var i = 0;
+      (function next() { if (i >= cand.length) return; var c = cand[i++]; helper("img=" + encodeURIComponent(c)).then(function (g) { if (g && g.dataUri && brand === b) { b.logoData = g.dataUri; imgURL = g.dataUri; var pv = $("#preview"); pv.src = g.dataUri; pv.hidden = false; } else next(); }).catch(next); })();
+    }).catch(function (e) { msg(/fetch|network/i.test(e.message) ? "Could not reach the helper. Check your connection and try again." : e.message, true); })
+      .then(function () { btn.disabled = false; btn.textContent = "Read site"; });
+  }
+  $("#go").addEventListener("click", goSite);
+  $("#siteurl").addEventListener("keydown", function (e) { if (e.key === "Enter") goSite(); });
   $("#read").addEventListener("click", function () {
     var html = $("#src").value; if (html.trim().length < 20) { msg("Paste the page source first.", true); return; }
     var u = $("#srcurl").value.trim(), base = ""; if (u) { if (!/^https?:\/\//i.test(u)) u = "https://" + u; base = u; }
@@ -102,8 +122,8 @@
   }
   function save(name, type, data) { var a = document.createElement("a"), b = new Blob([data], { type: type }); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000); }
   function slug() { return (brand.title || "brand").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "brand"; }
-  $("#dlSheet").addEventListener("click", function () { if (brand) save(slug() + "-brand-sheet.html", "text/html", S.sheetHtml(brand, { logoData: brand.source === "image" ? imgThumb() : "" })); });
-  $("#dlJson").addEventListener("click", function () { if (brand) save(slug() + "-brand.json", "application/json", JSON.stringify(brand, null, 2)); });
+  $("#dlSheet").addEventListener("click", function () { if (brand) save(slug() + "-brand-sheet.html", "text/html", S.sheetHtml(brand, { logoData: brand.source === "image" ? imgThumb() : (brand.logoData || "") })); });
+  $("#dlJson").addEventListener("click", function () { if (brand) save(slug() + "-brand.json", "application/json", JSON.stringify(brand, function (k, v) { return k === "logoData" ? undefined : v; }, 2)); });
   $("#cpCss").addEventListener("click", function () { if (brand) copy(S.cssVars(brand), "CSS variables copied"); });
   function imgThumb() { if (!imgData) return ""; var cv = document.createElement("canvas"); cv.width = imgData.width; cv.height = imgData.height; cv.getContext("2d").putImageData(imgData, 0, 0); return cv.toDataURL("image/png"); }
   $("#dlPng").addEventListener("click", function () {
