@@ -1,10 +1,10 @@
 {
   "name": "brand-palette-spy",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Drop in a website URL or a logo and get exact colours, fonts and a brand sheet.",
   "license": "MIT",
   "author": "Krishna Prasad",
   "engines": { "node": ">=18" },
   "bin": { "brand-palette-spy": "cli/spy.js" },
-  "scripts": { "test": "node tests/spy.test.js && node tests/cli.test.js" }
+  "scripts": { "test": "node tests/spy.test.js && node tests/cli.test.js && node tests/worker.test.js" }
 }
