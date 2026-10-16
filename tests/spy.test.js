@@ -39,6 +39,9 @@ assert.ok(up.colors.brand[0].uses.indexOf("buttons") >= 0 && up.colors.brand[0].
 // official brand and font pages the site links to
 const bl = E.pageInfo('<footer><a href="/brand-guidelines">Brand guidelines</a> <a href="https://acme.test/press/kit.zip">Press kit</a> <a href="/about">About</a> <a href="/blog/rebranding">Our rebrand story</a> <a href="mailto:brand@x.test">brand</a></footer>', "https://acme.test/").brandLinks;
 assert.deepStrictEqual(bl.map(l => l.url), ["https://acme.test/brand-guidelines", "https://acme.test/press/kit.zip"]); assert.strictEqual(bl[1].file, true);
+// font files the site serves: relative urls resolve against the stylesheet, installable formats come first, data urls are skipped
+const ff = E.fontFaces([{ url: "https://a.test/css/x.css", css: '@font-face{font-family:"Acme Sans";font-weight:700;src:url(../f/a.woff2) format("woff2"),url(../f/a.ttf) format("truetype")}@font-face{font-family:D;src:url(data:font/woff2;base64,AAAA)}' }]);
+assert.deepStrictEqual(ff["acme sans"], [{ url: "https://a.test/f/a.ttf", ext: "ttf", weight: "700", style: "normal" }]); assert.ok(!ff.d);
 // icon choice: apple-touch-icon beats favicon, &amp; in urls is decoded, customer logos are never picked
 const ic = E.pageInfo('<link rel="icon" href="/f.ico"><link rel="icon" type="image/png" sizes="96x96" href="/i.png?w=96&amp;h=96"><link rel="apple-touch-icon" href="/t.png"><body><div class="customerLogo"><img class="customerLogo-img" src="/openai.svg"></div>', "https://x.test/");
 assert.strictEqual(ic.icon, "https://x.test/t.png"); assert.strictEqual(ic.logo, "");
