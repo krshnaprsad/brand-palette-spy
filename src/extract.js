@@ -167,10 +167,10 @@
     });
     delete info.iconScore;
     // links the site itself offers for brand assets, press kits and fonts
-    var BL = /brand[\s-]*(assets?|guidelines?|kit|resources?|center|centre|portal|identity|book)|(press|media|logo|design)[\s-]*(kit|assets?|resources?)|style[\s-]*guide|download[^<]{0,20}fonts?|fonts?[^<]{0,20}download|our fonts?|typefaces?|brand\b/i;
+    var BL = /brand[\s-]*(assets?|guidelines?|kit|resources?|center|centre|portal|identity|book)|(press|media|logo|design)[\s-]*(kit|assets?|resources?)|style[\s-]*guide|press[\s-]*(room|page)?\b|media[\s-]*kit|visual identity|logo (usage|guidelines)|download[^<]{0,20}fonts?|fonts?[^<]{0,20}download|our fonts?|typefaces?|brand\b/i;
     var seen = {}; info.brandLinks = [];
     (html.match(/<a\b[^>]*>[\s\S]{0,300}?<\/a>/gi) || []).forEach(function (t) {
-      if (info.brandLinks.length >= 4) return;
+      if (info.brandLinks.length >= 6) return;
       var href = attr(t, "href"); if (!href || /^(#|mailto:|tel:|javascript:)/i.test(href)) return;
       var label = t.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 60), hay = label + " " + href;
       if (!BL.test(hay) || label.length < 2 || /\b(rebrand|branded|brand-?safe|brandon)\b/i.test(hay)) return;
