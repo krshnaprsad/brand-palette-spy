@@ -112,6 +112,19 @@
     var k = function (t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); };
     var ids = [k(name), k(name.replace(/([a-z])([A-Z])/g, "$1 $2"))]; return ids.filter(function (v, i) { return v && ids.indexOf(v) === i; });
   }
+  function guides(b) {
+    var box = $("#guideBox"); if (!box) return; var g = $("#guides"); g.innerHTML = ""; box.hidden = b.source !== "site"; if (b.source !== "site") return;
+    g.innerHTML = '<p class="note">Looking for a brand guideline...</p>';
+    var host = (b.url || "").replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
+    var q = "guide=" + encodeURIComponent(b.url) + (b.brandLinks || []).map(function (l) { return "&l=" + encodeURIComponent(l.url); }).join("");
+    helper(q).then(function (d) {
+      if (brand !== b) return;
+      var f = (d && d.found) || []; g.innerHTML = "";
+      if (!f.length) { g.innerHTML = '<p class="note">' + (d && d.error ? "Could not check this site for a brand guideline." : "No brand guideline found on " + S.esc(host) + ". I checked the homepage links, the sitemap and the usual pages like /brand and /press. It may still exist behind a link I can't see.") + "</p>"; return; }
+      var gl = f.filter(function (x) { return x.guide; });
+      g.innerHTML = (gl.length ? "" : '<p class="note">No full brand guideline, but the site has these brand or press pages:</p>') + f.map(function (x) { return '<a class="btn sm" target="_blank" rel="noopener" href="' + S.esc(x.url) + '">' + S.esc((x.guide ? "Brand guideline: " : "") + (x.label || "Brand page")) + (x.pdf ? " (PDF)" : "") + "</a>"; }).join(" ");
+    }).catch(function () { g.innerHTML = '<p class="note">Could not check this site for a brand guideline.</p>'; });
+  }
   function fontOffer(name, el, b) {
     var ids = fontIds(name), i = 0;
     (function tryNext() {
@@ -163,8 +176,7 @@
         fb.appendChild(d); fontOffer(f.family, d.querySelector(".fget"), brand); fontFiles(f.family, d, brand);
       });
     }
-    var bl = brand.brandLinks || [];
-    if (brand.source !== "image" && bl.length) { var bx = document.createElement("div"); bx.className = "bl"; bx.innerHTML = "<small>The site links to these for brand assets or fonts:</small> " + bl.map(function (l) { return '<a class="btn sm" target="_blank" rel="noopener" href="' + S.esc(l.url) + '">' + S.esc(l.label || "Brand page") + (l.file ? " (file)" : "") + "</a>"; }).join(" "); fb.appendChild(bx); }
+    guides(brand);
     $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function save(name, type, data) { var a = document.createElement("a"), b = new Blob([data], { type: type }); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000); }
