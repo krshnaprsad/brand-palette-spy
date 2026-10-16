@@ -166,6 +166,17 @@
       if (!info.logo && /logo/i.test(meta) && !NOT.test(meta)) { var s = attr(t, "src"); if (s && !/^data:/.test(s)) info.logo = absolute(s, base); }
     });
     delete info.iconScore;
+    // links the site itself offers for brand assets, press kits and fonts
+    var BL = /brand[\s-]*(assets?|guidelines?|kit|resources?|center|centre|portal|identity|book)|(press|media|logo|design)[\s-]*(kit|assets?|resources?)|style[\s-]*guide|download[^<]{0,20}fonts?|fonts?[^<]{0,20}download|our fonts?|typefaces?|brand\b/i;
+    var seen = {}; info.brandLinks = [];
+    (html.match(/<a\b[^>]*>[\s\S]{0,300}?<\/a>/gi) || []).forEach(function (t) {
+      if (info.brandLinks.length >= 4) return;
+      var href = attr(t, "href"); if (!href || /^(#|mailto:|tel:|javascript:)/i.test(href)) return;
+      var label = t.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim().slice(0, 60), hay = label + " " + href;
+      if (!BL.test(hay) || label.length < 2 || /\b(rebrand|branded|brand-?safe|brandon)\b/i.test(hay)) return;
+      var u = absolute(href, base); if (seen[u] || !/^https?:/i.test(u)) return; seen[u] = 1;
+      info.brandLinks.push({ label: label, url: u, file: /\.(zip|otf|ttf|woff2?|pdf)(\?|$)/i.test(u) });
+    });
     return info;
   }
   function inlineCss(html) {
@@ -178,7 +189,7 @@
     var info = pageInfo(html, base || ""), css = inlineCss(html) + "\n" + (cssTexts || []).join("\n");
     var extra = []; if (info.themeColor) extra.push(info.themeColor); if (info.tile) extra.push(info.tile);
     var colors = analyseColors(css, extra, html), fonts = fontsIn(css, html);
-    return { url: base || "", title: info.title, description: info.description, themeColor: info.themeColor ? C.rgbToHex(info.themeColor) : null, logo: info.logo, icon: info.icon, ogImage: info.ogImage, stylesheets: info.stylesheets, colors: colors, fonts: fonts.fonts, genericFonts: fonts.generic };
+    return { url: base || "", title: info.title, description: info.description, themeColor: info.themeColor ? C.rgbToHex(info.themeColor) : null, logo: info.logo, icon: info.icon, ogImage: info.ogImage, brandLinks: info.brandLinks, stylesheets: info.stylesheets, colors: colors, fonts: fonts.fonts, genericFonts: fonts.generic };
   }
   var api = { extract: extract, analyseColors: analyseColors, fontsIn: fontsIn, pageInfo: pageInfo, colorsIn: colorsIn };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.SpyExtract = api;
