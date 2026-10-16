@@ -36,6 +36,9 @@ const pg = '<body><a class="cta">Go</a><div class="hero"></div><style>.cta{backg
 const up = E.extract(pg, [], "https://u.test/");
 assert.strictEqual(up.colors.brand.length, 1); assert.strictEqual(up.colors.brand[0].hex, "#0A66C2");
 assert.ok(up.colors.brand[0].uses.indexOf("buttons") >= 0 && up.colors.brand[0].uses.indexOf("backgrounds") >= 0);
+// official brand and font pages the site links to
+const bl = E.pageInfo('<footer><a href="/brand-guidelines">Brand guidelines</a> <a href="https://acme.test/press/kit.zip">Press kit</a> <a href="/about">About</a> <a href="/blog/rebranding">Our rebrand story</a> <a href="mailto:brand@x.test">brand</a></footer>', "https://acme.test/").brandLinks;
+assert.deepStrictEqual(bl.map(l => l.url), ["https://acme.test/brand-guidelines", "https://acme.test/press/kit.zip"]); assert.strictEqual(bl[1].file, true);
 // icon choice: apple-touch-icon beats favicon, &amp; in urls is decoded, customer logos are never picked
 const ic = E.pageInfo('<link rel="icon" href="/f.ico"><link rel="icon" type="image/png" sizes="96x96" href="/i.png?w=96&amp;h=96"><link rel="apple-touch-icon" href="/t.png"><body><div class="customerLogo"><img class="customerLogo-img" src="/openai.svg"></div>', "https://x.test/");
 assert.strictEqual(ic.icon, "https://x.test/t.png"); assert.strictEqual(ic.logo, "");
