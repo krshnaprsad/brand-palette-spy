@@ -70,7 +70,7 @@
     var named = list.filter(function (f) { return !f.generic; }).sort(function (a, b) { return b.count - a.count || a.order - b.order; });
     return { fonts: named.slice(0, 6), generic: list.filter(function (f) { return f.generic; }).sort(function (a, b) { return b.count - a.count; }).slice(0, 3) };
   }
-  function attr(tag, name) { var m = new RegExp("\\b" + name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')", "i").exec(tag); return m ? (m[1] !== undefined ? m[1] : m[2]) : ""; }
+  function attr(tag, name) { var m = new RegExp("\\b" + name + "\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')", "i").exec(tag); return m ? (m[1] !== undefined ? m[1] : m[2]).replace(/&amp;/g, "&") : ""; }
   function absolute(u, base) { try { return new URL(u, base).href; } catch (e) { return u; } }
   function pageInfo(html, base) {
     var info = { title: "", description: "", themeColor: null, logo: "", icon: "", ogImage: "", stylesheets: [] }, m;
@@ -85,10 +85,21 @@
     (html.match(/<link\b[^>]*>/gi) || []).forEach(function (t) {
       var rel = attr(t, "rel").toLowerCase(), href = attr(t, "href"); if (!href) return;
       if (/stylesheet/.test(rel)) info.stylesheets.push(absolute(href, base));
-      if (/apple-touch-icon/.test(rel)) info.icon = absolute(href, base);
-      else if (/\bicon\b/.test(rel) && !info.icon) info.icon = absolute(href, base);
+      if (/\bicon\b/.test(rel)) {
+        // best own icon: apple-touch-icon, then the biggest declared size, then svg, then whatever is left (.ico last)
+        var sz = parseInt((attr(t, "sizes").match(/\d+/) || [0])[0], 10) || 0, u = absolute(href, base);
+        var score = (/apple-touch-icon/.test(rel) ? 1000 : 0) + sz + (/\.svg(\?|$)/i.test(u) ? 500 : 0) + (/\.png(\?|$)/i.test(u) ? 50 : 0) - (/\.ico(\?|$)/i.test(u) ? 40 : 0);
+        if (score > (info.iconScore === undefined ? -1e9 : info.iconScore)) { info.icon = u; info.iconScore = score; }
+      }
     });
-    (html.match(/<img\b[^>]*>/gi) || []).forEach(function (t) { if (!info.logo && /logo/i.test(attr(t, "src") + " " + attr(t, "alt") + " " + attr(t, "class") + " " + attr(t, "id"))) { var s = attr(t, "src"); if (s && !/^data:/.test(s)) info.logo = absolute(s, base); } });
+    // the site's own logo: only an image inside the page header or nav, never partner, customer or press logos
+    var NOT = /customer|partner|client|sponsor|trusted|testimonial|press|featured|brands?-|case-?stud|integration|award|logos?-(wall|grid|strip|cloud)|logo-?(wall|grid|strip|cloud)/i;
+    var blocks = (html.match(/<header\b[\s\S]*?<\/header>|<nav\b[\s\S]*?<\/nav>/gi) || []).join(" ");
+    (blocks.match(/<img\b[^>]*>/gi) || []).forEach(function (t) {
+      var meta = attr(t, "src") + " " + attr(t, "alt") + " " + attr(t, "class") + " " + attr(t, "id");
+      if (!info.logo && /logo/i.test(meta) && !NOT.test(meta)) { var s = attr(t, "src"); if (s && !/^data:/.test(s)) info.logo = absolute(s, base); }
+    });
+    delete info.iconScore;
     return info;
   }
   function inlineCss(html) {
