@@ -24,7 +24,7 @@ async function main() {
   for (const c of css.slice()) { const re = /@import\s+(?:url\()?["']?([^"')\s;]+)/g; let m, n = 0; while ((m = re.exec(c)) && n++ < 3) { try { css.push((await get(new URL(m[1], page.url).href)).text); } catch (e) {} } }
   const brand = E.extract(page.text, css, page.url);
   let logoData = "";
-  for (const cand of [brand.logo, brand.icon, brand.ogImage].filter(Boolean)) {
+  for (const cand of [brand.icon, brand.logo, brand.ogImage].filter(Boolean)) {
     try { const g = await get(cand, true); if (/^image\/(png|jpe?g|gif|webp|svg\+xml|x-icon|vnd.microsoft.icon)/.test(g.type) && g.buf.length < 300000) { logoData = "data:" + g.type.split(";")[0] + ";base64," + g.buf.toString("base64"); brand.logoUsed = cand; break; } } catch (e) {}
   }
   const host = new URL(page.url).hostname.replace(/^www\./, ""), dir = out || path.join("brand-" + host);
