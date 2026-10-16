@@ -71,7 +71,7 @@
       show();
       var cand = [b.icon, b.logo, b.ogImage].filter(Boolean); var i = 0;
       (function next() { if (i >= cand.length) return; var c = cand[i++]; helper("img=" + encodeURIComponent(c)).then(function (g) { if (g && g.dataUri && brand === b) { b.logoData = g.dataUri; imgURL = g.dataUri; var pv = $("#preview"); pv.src = g.dataUri; pv.hidden = false; } else next(); }).catch(next); })();
-    }).catch(function (e) { msg(/fetch|network/i.test(e.message) ? "Could not reach the helper. Check your connection and try again." : e.message, true); })
+    }).catch(function (e) { var h = /HTTP (401|403|429|451|503)/.exec(e.message || ""); if (h) { var det = document.querySelector("details.more"); if (det) det.open = true; msg("This site will not let my helper read it (it answered HTTP " + h[1] + "). Big brands often block automated visits, and I cannot get around that. You can still get the colours: use \u201COther ways in\u201D below, or open the Logo or image tab and drop their logo or a screenshot of their site.", true); return; } msg(/fetch|network/i.test(e.message) ? "Could not reach the helper. Check your connection and try again." : e.message, true); })
       .then(function () { btn.disabled = false; btn.textContent = "Read site"; });
   }
   $("#go").addEventListener("click", goSite);
