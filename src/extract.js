@@ -1,7 +1,7 @@
 /* Pulls brand colours, fonts and a logo candidate out of a page's HTML and CSS text. Works in Node and in the browser. */
 (function (root) {
   var C = typeof module !== "undefined" && module.exports ? require("./color.js") : root.SpyColor;
-  var GENERIC = /^(inherit|initial|unset|serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-[a-z-]+|-apple-system|blinkmacsystemfont|emoji|math|fangsong|segoe ui|roboto|helvetica neue|helvetica|arial|times new roman|times|courier new|courier|georgia|verdana|tahoma|trebuchet ms|lucida grande|lucida sans unicode|noto sans|apple color emoji|segoe ui emoji|segoe ui symbol|noto color emoji|oxygen|ubuntu|cantarell|fira sans|droid sans|open sans|menlo|monaco|consolas|sfmono-regular|sf mono|liberation mono|var)$/i;
+  var GENERIC = /(^.* fallback$)|^(inherit|initial|unset|serif|sans-serif|monospace|cursive|fantasy|system-ui|ui-[a-z-]+|-apple-system|blinkmacsystemfont|emoji|math|fangsong|segoe ui|roboto|helvetica neue|helvetica|arial|times new roman|times|courier new|courier|georgia|verdana|tahoma|trebuchet ms|lucida grande|lucida sans unicode|noto sans|apple color emoji|segoe ui emoji|segoe ui symbol|noto color emoji|oxygen|ubuntu|cantarell|fira sans|droid sans|open sans|menlo|monaco|consolas|sfmono-regular|sf mono|liberation mono|var)$/i;
 
   function stripComments(s) { return s.replace(/\/\*[\s\S]*?\*\//g, " "); }
   function colorsIn(text) {
@@ -52,7 +52,7 @@
     var text = stripComments(css), map = {}, m, re = /font-family\s*:\s*([^;}{]+)/gi, order = 0;
     function add(name, w, source) {
       name = name.replace(/!important/i, "").replace(/^["'\s]+|["'\s]+$/g, "").trim();
-      if (!name || name.length > 40 || /^[-\d.]|\(|var\b|\\|^(normal|bold|bolder|lighter|italic|\d)/i.test(name) || /^[\d.]+(px|em|rem|%)/.test(name)) return;
+      if (!name || name.length > 40 || !/^[A-Za-z][A-Za-z0-9 ._-]*$/.test(name) || /^[-\d.]|\(|var\b|\\|^(normal|bold|bolder|lighter|italic|\d)/i.test(name) || /^[\d.]+(px|em|rem|%)/.test(name)) return;
       var k = name.toLowerCase(); map[k] = map[k] || { family: name, count: 0, generic: GENERIC.test(name), source: source, order: order++ }; map[k].count += w;
       if (source === "google" || source === "font-face") map[k].source = source;
     }
