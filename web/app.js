@@ -69,7 +69,7 @@
       b.source = "site"; brand = b; imgURL = "";
       if (!b.colors.brand.length && !b.colors.neutrals.length) msg("No colours found. This site may draw everything with JavaScript or block bots. Try pasting its source under Other ways in.", true);
       show();
-      var cand = [b.logo, b.icon, b.ogImage].filter(Boolean); var i = 0;
+      var cand = [b.icon, b.logo, b.ogImage].filter(Boolean); var i = 0;
       (function next() { if (i >= cand.length) return; var c = cand[i++]; helper("img=" + encodeURIComponent(c)).then(function (g) { if (g && g.dataUri && brand === b) { b.logoData = g.dataUri; imgURL = g.dataUri; var pv = $("#preview"); pv.src = g.dataUri; pv.hidden = false; } else next(); }).catch(next); })();
     }).catch(function (e) { msg(/fetch|network/i.test(e.message) ? "Could not reach the helper. Check your connection and try again." : e.message, true); })
       .then(function () { btn.disabled = false; btn.textContent = "Read site"; });
