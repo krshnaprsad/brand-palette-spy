@@ -34,6 +34,7 @@ If you would rather not rely on mine, deploy `worker/worker.js` to your own free
 
 - Colours come from the site's own CSS, so they are what the site uses, not always the official brand colour.
 - Only CSS rules that point at things on the page are counted, so template and editor leftovers are mostly ignored. The "Found in CSS for" note comes from reading the CSS, not from drawing the page, so treat it as a hint.
+- Fonts: open fonts (OFL, Apache and similar, checked against the Fontsource list) get a download button and a Google Fonts link. Licensed fonts only show their name and a link to check the licence, I don't pass those files on. If the site's homepage links to a brand assets, press kit or fonts page, that link is shown too. Sites that hide those pages won't show one.
 - Fonts are read from the CSS and Google Fonts links. Fonts baked into images are not detected.
 - Sites that build everything with JavaScript, or that block bots, can give little or nothing. The helper also can't see pages behind a login.
 - The helper's rate limit is per visitor and kept in memory, so it is a polite guard, not a hard wall.
