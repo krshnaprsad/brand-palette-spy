@@ -106,6 +106,26 @@
     return d;
   }
   function copy(t, note) { if (navigator.clipboard) navigator.clipboard.writeText(t).then(function () { msg(note); }, function () { msg("Copy was blocked by the browser.", true); }); else msg("Copy is not available here.", true); }
+  // Only openly licensed fonts get a download. Anything else shows its name and source, no files.
+  var OPEN = /^(OFL|Apache|MIT|Ubuntu|CC0|CC-BY|ISC|BSD)/i;
+  function fontIds(name) {
+    var k = function (t) { return t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, ""); };
+    var ids = [k(name), k(name.replace(/([a-z])([A-Z])/g, "$1 $2"))]; return ids.filter(function (v, i) { return v && ids.indexOf(v) === i; });
+  }
+  function fontOffer(name, el, b) {
+    var ids = fontIds(name), i = 0;
+    (function tryNext() {
+      if (i >= ids.length) { el.innerHTML = '<small>Not a free font I can find, so no download. It may be licensed: <a target="_blank" rel="noopener" href="https://www.google.com/search?q=' + encodeURIComponent(name + " font licence") + '">check the licence</a>.</small>'; return; }
+      var id = ids[i++];
+      fetch("https://api.fontsource.org/v1/fonts/" + id).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (m) {
+        if (b !== brand) return;
+        if (!OPEN.test(m.license || "")) { el.innerHTML = "<small>Licence: " + S.esc(m.license || "unknown") + ". No download.</small>"; return; }
+        var h = '<small>' + S.esc(m.license) + '</small> <a class="btn sm" href="https://api.fontsource.org/v1/download/' + S.esc(m.id) + '">Download zip (web files)</a>';
+        if (m.type === "google") h += ' <a class="btn sm" target="_blank" rel="noopener" href="https://fonts.google.com/specimen/' + encodeURIComponent(m.family).replace(/%20/g, "+") + '">Get TTF on Google Fonts</a>';
+        el.innerHTML = h;
+      }).catch(tryNext);
+    })();
+  }
   function show() {
     $("#result").hidden = false; $("#rtitle").textContent = brand.title || "Result";
     var pv = $("#preview"); if (imgURL) { pv.src = imgURL; pv.hidden = false; } else pv.hidden = true;
@@ -116,8 +136,14 @@
     var fb = $("#fonts"); fb.innerHTML = ""; $("#fontBox").hidden = brand.source === "image";
     if (brand.source !== "image") {
       if (!(brand.fonts || []).length) fb.innerHTML = '<p class="note">No named fonts found. They may be set in a stylesheet that was not included.</p>';
-      (brand.fonts || []).slice(0, 5).forEach(function (f) { var d = document.createElement("div"); d.className = "font"; d.innerHTML = "<b>" + S.esc(f.family) + "</b><small>" + S.esc(f.source === "google" ? "Google Fonts" : f.source === "font-face" ? "Custom font on the site" : "Used in the site CSS") + "</small>"; fb.appendChild(d); });
+      (brand.fonts || []).slice(0, 5).forEach(function (f) {
+        var d = document.createElement("div"); d.className = "font";
+        d.innerHTML = "<b>" + S.esc(f.family) + "</b><small>" + S.esc(f.source === "google" ? "Google Fonts" : f.source === "font-face" ? "Custom font on the site" : "Used in the site CSS") + '</small><span class="fget"><small>Checking if it is free to download...</small></span>';
+        fb.appendChild(d); fontOffer(f.family, d.querySelector(".fget"), brand);
+      });
     }
+    var bl = brand.brandLinks || [];
+    if (brand.source !== "image" && bl.length) { var bx = document.createElement("div"); bx.className = "bl"; bx.innerHTML = "<small>The site links to these for brand assets or fonts:</small> " + bl.map(function (l) { return '<a class="btn sm" target="_blank" rel="noopener" href="' + S.esc(l.url) + '">' + S.esc(l.label || "Brand page") + (l.file ? " (file)" : "") + "</a>"; }).join(" "); fb.appendChild(bx); }
     $("#result").scrollIntoView({ behavior: "smooth", block: "start" });
   }
   function save(name, type, data) { var a = document.createElement("a"), b = new Blob([data], { type: type }); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000); }
