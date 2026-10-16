@@ -25,3 +25,5 @@ h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)
 .more summary:hover{color:#fff}
 .more .note{margin-top:10px}
 .use{display:block;margin-top:4px;color:#8a8a8a;font-style:normal;font-size:11px}
+.fget{display:flex;align-items:center;gap:8px;flex-wrap:wrap;width:100%}.btn.sm{padding:4px 10px;font-size:12px;text-decoration:none}.fget a:not(.btn){color:#bbb}
+.bl{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
