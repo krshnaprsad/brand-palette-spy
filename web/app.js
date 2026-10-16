@@ -64,7 +64,7 @@
     var btn = $("#go"); btn.disabled = true; btn.textContent = "Reading..."; msg("");
     helper("url=" + encodeURIComponent(u)).then(function (d) {
       if (d.error) throw new Error(d.error);
-      var b = E.extract(d.html || "", d.styles || [], d.url || u);
+      var sheets = d.sheets || []; var b = E.extract(d.html || "", sheets.map(function (x) { return x.css; }), d.url || u); b.faceFiles = E.fontFaces(sheets.concat([{ url: d.url || u, css: (d.html || "").match(/<style\b[\s\S]*?<\/style>/gi) ? (d.html.match(/<style\b[\s\S]*?<\/style>/gi) || []).join("\n") : "" }]));
       if (!b.title) b.title = (d.url || u).replace(/^https?:\/\/(www\.)?/, "").replace(/\/.*$/, "");
       b.source = "site"; brand = b; imgURL = "";
       if (!b.colors.brand.length && !b.colors.neutrals.length) msg("No colours found. This site may draw everything with JavaScript or block bots. Try pasting its source under Other ways in.", true);
@@ -115,16 +115,37 @@
   function fontOffer(name, el, b) {
     var ids = fontIds(name), i = 0;
     (function tryNext() {
-      if (i >= ids.length) { el.innerHTML = '<small>Not a free font I can find, so no download. It may be licensed: <a target="_blank" rel="noopener" href="https://www.google.com/search?q=' + encodeURIComponent(name + " font licence") + '">check the licence</a>.</small>'; return; }
+      if (i >= ids.length) { el.innerHTML = '<small>Not on the free font lists, so it may be licensed: <a target="_blank" rel="noopener" href="https://www.google.com/search?q=' + encodeURIComponent(name + " font licence") + '">check the licence</a>.</small>'; return; }
       var id = ids[i++];
       fetch("https://api.fontsource.org/v1/fonts/" + id).then(function (r) { if (!r.ok) throw 0; return r.json(); }).then(function (m) {
         if (b !== brand) return;
-        if (!OPEN.test(m.license || "")) { el.innerHTML = "<small>Licence: " + S.esc(m.license || "unknown") + ". No download.</small>"; return; }
+        if (!OPEN.test(m.license || "")) { el.innerHTML = "<small>Licence: " + S.esc(m.license || "unknown") + ".</small>"; return; }
         var h = '<small>' + S.esc(m.license) + '</small> <a class="btn sm" href="https://api.fontsource.org/v1/download/' + S.esc(m.id) + '">Download zip (web files)</a>';
         if (m.type === "google") h += ' <a class="btn sm" target="_blank" rel="noopener" href="https://fonts.google.com/specimen/' + encodeURIComponent(m.family).replace(/%20/g, "+") + '">Get TTF on Google Fonts</a>';
         el.innerHTML = h;
       }).catch(tryNext);
     })();
+  }
+  // Files the site itself serves for this font. The visitor's browser fetches them (through the helper, because other sites block direct downloads) and saves them. Nothing is stored on our side.
+  function fontFiles(name, row, b) {
+    var list = (b.faceFiles || {})[name.toLowerCase()];
+    var box = document.createElement("div"); box.className = "ffiles"; row.appendChild(box);
+    if (!list || !list.length) { box.innerHTML = "<small>The site does not serve a file for this one (likely a system font), so there is nothing to download.</small>"; return; }
+    var seen = {};
+    list.slice(0, 8).forEach(function (f) {
+      var label = (f.weight && f.weight !== "400" ? f.weight + " " : "") + (/italic|oblique/i.test(f.style) ? "italic " : "") + "." + f.ext;
+      var fn = name.replace(/[^\w-]+/g, "") + "-" + (f.weight || "400").replace(/\s+/g, "-") + (/italic|oblique/i.test(f.style) ? "-italic" : "") + "." + f.ext; if (seen[fn]) return; seen[fn] = 1;
+      var a = document.createElement("button"); a.className = "btn sm"; a.textContent = "Download " + label.trim();
+      a.addEventListener("click", function () {
+        a.disabled = true; var old = a.textContent; a.textContent = "Fetching...";
+        fetch(HELPER + "?font=" + encodeURIComponent(f.url)).then(function (r) { if (!r.ok) throw new Error("The helper could not get that file."); return r.blob(); }).then(function (bl) {
+          var url = URL.createObjectURL(bl), l = document.createElement("a"); l.href = url; l.download = fn; document.body.appendChild(l); l.click(); l.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 4000); a.textContent = old; msg("Saved " + fn);
+        }).catch(function (e) { a.textContent = old; msg(e.message || "Download failed.", true); }).then(function () { a.disabled = false; });
+      });
+      box.appendChild(a);
+    });
+    var n = document.createElement("small"); n.className = "lic"; n.textContent = "Check the font's licence before you use it. A font on a website is not always free to use."; box.appendChild(n);
+    if (list.length && list.every(function (f) { return f.ext === "woff2" || f.ext === "woff"; })) { var w = document.createElement("small"); w.textContent = "Web format. Convert it to install it on a computer."; box.appendChild(w); }
   }
   function show() {
     $("#result").hidden = false; $("#rtitle").textContent = brand.title || "Result";
@@ -139,7 +160,7 @@
       (brand.fonts || []).slice(0, 5).forEach(function (f) {
         var d = document.createElement("div"); d.className = "font";
         d.innerHTML = "<b>" + S.esc(f.family) + "</b><small>" + S.esc(f.source === "google" ? "Google Fonts" : f.source === "font-face" ? "Custom font on the site" : "Used in the site CSS") + '</small><span class="fget"><small>Checking if it is free to download...</small></span>';
-        fb.appendChild(d); fontOffer(f.family, d.querySelector(".fget"), brand);
+        fb.appendChild(d); fontOffer(f.family, d.querySelector(".fget"), brand); fontFiles(f.family, d, brand);
       });
     }
     var bl = brand.brandLinks || [];
