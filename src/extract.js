@@ -191,6 +191,30 @@
     var colors = analyseColors(css, extra, html), fonts = fontsIn(css, html);
     return { url: base || "", title: info.title, description: info.description, themeColor: info.themeColor ? C.rgbToHex(info.themeColor) : null, logo: info.logo, icon: info.icon, ogImage: info.ogImage, brandLinks: info.brandLinks, stylesheets: info.stylesheets, colors: colors, fonts: fonts.fonts, genericFonts: fonts.generic };
   }
-  var api = { extract: extract, analyseColors: analyseColors, fontsIn: fontsIn, pageInfo: pageInfo, colorsIn: colorsIn };
+  // font files the page's own @font-face rules point at: {family: [{url, weight, style, ext}]}
+  function fontFaces(sheets) {
+    var out = {};
+    (sheets || []).forEach(function (sh) {
+      var css = stripComments(sh.css || ""), re = /@font-face\s*\{([^}]*)\}/gi, m;
+      while ((m = re.exec(css))) {
+        var body = m[1], fam = /font-family\s*:\s*([^;]+)/i.exec(body); if (!fam) continue;
+        var name = fam[1].replace(/["']/g, "").trim(), weight = (/font-weight\s*:\s*([^;]+)/i.exec(body) || [0, "400"])[1].trim(), style = (/font-style\s*:\s*([^;]+)/i.exec(body) || [0, "normal"])[1].trim();
+        var files = [], ur = /url\(\s*["']?([^"')]+?)["']?\s*\)(?:\s*format\(\s*["']?([\w-]+))?/gi, u;
+        while ((u = ur.exec(body))) {
+          if (/^data:/i.test(u[1])) continue;
+          var ext = ((u[1].split(/[?#]/)[0].match(/\.(woff2|woff|ttf|otf)$/i) || [0, (u[2] || "").replace("truetype", "ttf").replace("opentype", "otf")])[1] || "").toLowerCase();
+          if (!/^(woff2|woff|ttf|otf)$/.test(ext)) continue;
+          files.push({ url: absolute(u[1], sh.url || ""), ext: ext });
+        }
+        if (!files.length) continue;
+        // prefer a file that installs on a computer (ttf, otf), then woff, then woff2
+        var rank = { ttf: 0, otf: 0, woff: 1, woff2: 2 }; files.sort(function (a, b) { return rank[a.ext] - rank[b.ext]; });
+        var list = out[name.toLowerCase()] = out[name.toLowerCase()] || [];
+        if (!list.some(function (x) { return x.url === files[0].url; })) list.push({ url: files[0].url, ext: files[0].ext, weight: weight, style: style });
+      }
+    });
+    return out;
+  }
+  var api = { fontFaces: fontFaces, extract: extract, analyseColors: analyseColors, fontsIn: fontsIn, pageInfo: pageInfo, colorsIn: colorsIn };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.SpyExtract = api;
 })(typeof window !== "undefined" ? window : this);
