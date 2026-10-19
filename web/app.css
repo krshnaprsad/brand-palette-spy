@@ -31,3 +31,6 @@ h3{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim)
 .why{margin-top:18px;max-width:760px}
 .why h2{margin:0 0 10px;font-size:15px;font-weight:600}
 .why p{margin:0;color:#cfcfcf;font-size:14px;line-height:1.6}
+.z3{color:inherit;text-decoration:underline dotted;text-underline-offset:3px}
+.z3:hover{color:#fff;text-decoration-style:solid}
+.z3:focus-visible{outline:2px solid #fff;outline-offset:3px;border-radius:3px;color:#fff}
