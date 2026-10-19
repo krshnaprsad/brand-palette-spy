@@ -2,7 +2,7 @@
 
 Drop in a logo or a website and get the exact colours, the fonts and a brand sheet you can hand to someone.
 
-Made by Zero3.
+Made by [Zero3](https://www.zero3creatives.net/).
 
 ## Why I built Brand Palette Spy
 
