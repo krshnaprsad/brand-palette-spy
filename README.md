@@ -4,6 +4,10 @@ Drop in a logo or a website and get the exact colours, the fonts and a brand she
 
 Made by Zero3.
 
+## Why I built Brand Palette Spy
+
+When I paste a website or a logo in, it shows every colour exactly, with the hex code, so I can use it straight in my artwork. Fonts are the same story. Client briefs often name a font but do not give the file, and if it is a brand guideline font, their website almost certainly uses it. Normally I would have to open the browser inspector and dig around to get it. With Brand Palette Spy I just scroll, grab the font easily, and see the palette and colour theme of the brand.
+
 ## What it does
 
 - **Logo or image:** drop, click or paste an image. You get the main colours with HEX, RGB, HSL, a colour name and the contrast against white and black. Images never leave your computer.
